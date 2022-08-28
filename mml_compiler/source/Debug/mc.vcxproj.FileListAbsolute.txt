@@ -1,1 +1,2 @@
 C:\Users\hra\Documents\github\bgm_driver\mml_compiler\source\Debug\mc.exe
+X:\GitHub\_uniskie\bgm_driver_mod\mml_compiler\source\Debug\mc.exe

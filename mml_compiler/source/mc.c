@@ -582,7 +582,7 @@ static void fwrite_text( const char *p_buffer, int size, FILE *p_out ) {
 }
 
 /* ----------------------------------------------------- */
-static void link_music_data( const char *p_out_name, char *p_sound_font_memory, int sound_font_count, char *p_music_data_memory, int *p_music_data_size ) {
+static void link_music_data( const char *p_out_name, char *p_sound_font_memory, int sound_font_count, char *p_music_data_memory, int *p_music_data_size, const char* p_bin_name, int is_bsave) {
 	int offset1, offset2, offset3, i, sound_font;
 	FILE *p_out;
 
@@ -623,20 +623,64 @@ static void link_music_data( const char *p_out_name, char *p_sound_font_memory, 
 	}
 
 	/* ファイルへ書き出す */
-	p_out = fopen( p_out_name, "w" );
-	if( p_out == NULL ) {
-		fprintf( stderr, "ERROR: %s を書き出せません\n", p_out_name );
+	p_out = fopen(p_out_name, "w");
+	if (p_out == NULL) {
+		fprintf(stderr, "ERROR: %s を書き出せません\n", p_out_name);
 		return;
 	}
-	fprintf( p_out, "\t\t; 曲データ\n" );
-	fwrite_text( p_music_data_memory, offset3, p_out );
-	fprintf( p_out, "\t\t; 音色データ\n" );
-	fwrite_text( p_sound_font_memory, SOUND_FONT_SIZE * sound_font_count, p_out );
-	fclose( p_out );
+	fprintf(p_out, "\t\t; 曲データ\n");
+	fwrite_text(p_music_data_memory, offset3, p_out);
+	fprintf(p_out, "\t\t; 音色データ\n");
+	fwrite_text(p_sound_font_memory, SOUND_FONT_SIZE * sound_font_count, p_out);
+	fclose(p_out);
+	
+	if (p_bin_name)
+	{
+		p_out = fopen(p_bin_name, "wb" );
+		if( p_out == NULL ) {
+			fprintf( stderr, "ERROR: %s を書き出せません\n", p_bin_name);
+			return;
+		}
+		
+		size_t total_size = offset3 + SOUND_FONT_SIZE * sound_font_count;
+		size_t writed_size = 0;
+		size_t write_total = total_size;
+
+		if (is_bsave)
+		{
+			size_t start_adr = 0;
+			size_t end_adr = start_adr + total_size - 1;
+
+			fprintf(stdout, "BSAVEファイル: %s (開始:0x%X - 終了:0x%X)を書き出します\n", p_bin_name, start_adr, end_adr);
+			// BSAVEHEADER 0000h - nnnnh
+			char head[7];
+			head[0] = 0xFE;
+			head[1] = (char)(start_adr);
+			head[2] = (char)(start_adr >> 8);
+			head[3] = (char)(end_adr);
+			head[4] = (char)(end_adr>>8);
+			head[5] = head[1];
+			head[6] = head[2];
+			write_total += sizeof(head);
+			writed_size += fwrite(head, 1, sizeof(head), p_out);	// BSAVE HEADER
+		}
+		else
+		{
+			fprintf(stdout, "生BINARYファイル: %s (0x%X bytes)を書き出します\n", p_bin_name, total_size);
+		}
+		writed_size += fwrite( p_music_data_memory, 1, offset3, p_out );
+		writed_size += fwrite( p_sound_font_memory, 1, SOUND_FONT_SIZE * sound_font_count, p_out );
+		fclose( p_out );
+
+		if (write_total != writed_size)
+		{
+			fprintf(stderr, "ERROR: %s への書き込みに失敗しました。\n", p_bin_name);
+		}
+	}
 }
 
 /* ----------------------------------------------------- */
-static void mml_compile( const char *p_out_name, const char *p_text ) {
+static void mml_compile( const char *p_out_name, const char *p_text, const char* p_bin_name, int is_bsave) {
 	static char sound_font_memory[ MEM_SIZE ];
 	static char music_data_memory[ MEM_SIZE ];
 	int sound_font_count, music_data_size[3];
@@ -658,7 +702,7 @@ static void mml_compile( const char *p_out_name, const char *p_text ) {
 	printf( "ch.1 データサイズ %d[byte]\n", music_data_size[1] );
 	music_data_size[2] = compile_music_data( music_data_memory, &text_info, sound_font_count, BGM_HEADER_SIZE + music_data_size[0] + music_data_size[1] );
 	printf( "ch.2 データサイズ %d[byte]\n", music_data_size[2] );
-	link_music_data( p_out_name, sound_font_memory, sound_font_count, music_data_memory, music_data_size );
+	link_music_data( p_out_name, sound_font_memory, sound_font_count, music_data_memory, music_data_size, p_bin_name, is_bsave);
 }
 
 /* ----------------------------------------------------- */
@@ -685,7 +729,7 @@ int main( int argc, char *argv[] ) {
 		fprintf( stderr, "ERROR: \"%s\" を読み込めません\n", argv[1] );
 		return 2;
 	}
-	mml_compile( argv[2], p_text );
+	mml_compile( argv[2], p_text, (argc >= 3) ? argv[3] : NULL, (argc >= 4));
 	free( p_text );
 	printf( "Completed.\n" );
 	return 0;
