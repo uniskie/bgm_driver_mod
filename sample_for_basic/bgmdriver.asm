@@ -145,6 +145,7 @@ bgmdriver_play::
 		ld		[play_master_volume_speed], a
 		ld		[play_master_volume_wait], a
 		ld		[play_master_volume], a
+		ld		[play_bgm_pause_flag],a
 		ei
 		ret
 
@@ -169,8 +170,46 @@ bgmdriver_stop::
 		call	bgmdriver_init_play_info
 		ld		hl, play_info_ch2
 		call	bgmdriver_init_play_info
+		xor		a, a
+		ld		[play_bgm_pause_flag],a
 		; 割禁解除
 		ei
+		ret
+
+; -----------------------------------------------------------------------------
+;	演奏一時停止を切り替え
+;	input:
+;		a	... 0以外なら一時停止 0なら一時停止解除
+;	output
+;		なし
+;	break
+;		a
+;	comment
+;		なし
+; -----------------------------------------------------------------------------
+bgmdriver_pause::
+		; 停止処理の途中で割り込まれて挙動不審にならないように割禁
+		di
+		ld		[play_bgm_pause_flag],a
+		; 割禁解除
+		ei
+		ret
+
+; -----------------------------------------------------------------------------
+;	演奏一時停止か調べる
+;	input:
+;		なし
+;	output
+;		a	... 0以外なら一時停止 0なら一時停止していない
+;		z	... 0なら一時停止中 1なら一時停止していない
+;	break
+;		f
+;	comment
+;		なし
+; -----------------------------------------------------------------------------
+bgmdriver_check_pause::
+		ld		a, [play_bgm_pause_flag]
+		or		a, a
 		ret
 
 ; -----------------------------------------------------------------------------
@@ -352,6 +391,23 @@ bgmdriver_play_ch:
 		ld		a, [ix + INFO_PLAY_ADR_L]
 		or		a, [ix + INFO_PLAY_ADR_H]
 		ret		z									; 演奏中でなければ何もせずに脱ける
+		; 演奏一時停止中であるか調べる
+		ld		a, [play_bgm_pause_flag]
+		or		a, a
+		jr		z, bgmdriver_play_ch_exec			; 一時停止中で無ければ再生処理続行
+
+		; pause処理 -----------------------------------------------------------
+bgmdriver_pause_ch:
+		xor		a, a
+		ld		[ix + INFO_EFF_VOL], a
+		ld		[ix + INFO_NOISE_FREQ], a			; noise off
+		ld		[ix + INFO_EFF_FREQ_L], a
+		ld		a, 0x80								; tone off
+		ld		[ix + INFO_EFF_FREQ_H], a
+		ret											; 一時停止中なら発声を止めて終わる
+		
+		; ウェイト処理 -----------------------------------------------------------
+bgmdriver_play_ch_exec:
 		; 待機時間であるか調べる
 		ld		l, [ix + INFO_WAIT_COUNT_L]
 		ld		h, [ix + INFO_WAIT_COUNT_H]
@@ -1149,6 +1205,9 @@ play_noise_freq:
 
 play_bgm_data_adr:
 		dw		0				; 再生中の BGMデータ先頭アドレス
+
+play_bgm_pause_flag:
+		db		0				; BGMの一時停止フラグ
 
 play_master_volume_wait:
 		db		0				; フェードアウト用待機時間

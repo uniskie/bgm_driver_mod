@@ -11,7 +11,9 @@
 ;		bgmdriver_initialize
 ;		bgmdriver_play					;[HL]...DATA
 ;		bgmdriver_stop
-;		bgmdriver_check_playing			;Z ... Z:STOP / NZ:PLAYING
+;		bgmdriver_pause					;A ... 0=UNPAUSE / 1=PAUSE
+;		bgmdriver_is_pause				;Z ... Z=UNPAUSE / NZ=PAUSE
+;		bgmdriver_check_playing			;Z ... Z=STOP / NZ=PLAYING
 ;		bgmdriver_fadeout				;A ... SPEED
 ;		bgmdriver_play_sound_effect		;[HL] ... DATA
 ;		bgmdriver_mute_psg
@@ -30,6 +32,8 @@ start_address::
 		jp		bgm_se		;DEFUSR3=UA+&H09	U=USR3(&HC800)'&HC800にある効果音を再生
 		jp		bgm_fadeout	;DEFUSR4=UA+&H0C	U=USR4(1)'ウェイト1フレームでフェードアウト
 		jp		bgm_is_play	;DEFUSR5=UA+&H0F	U=USR5(0)'Uが0以外なら演奏中
+		jp		bgm_pause	;DEFUSR6=UA+&H12	U=USR6(1)'1なら一時停止/0なら一時停止解除
+		jp		bgm_is_pause;DEFUSR7=UA+&H15	U=USR7(0)'Uが0以外なら一時停止中
 
 ;================================
 ;  GET USR[INT]
@@ -57,7 +61,7 @@ getint:
 ;================================
 ; U=USR[1]  : INSTALL BGM DRIVER
 ; U=USR[OTHER] : UNINSTALL BGM DRIVER
-bgm_init:
+bgm_init::
 		call	getint
 		ld		a,l
 		cp		1
@@ -138,7 +142,7 @@ htimi_bgm:
 ;--- PLAY BGM ---
 ;================================
 ; A=USR[ADDRESS]
-bgm_play:
+bgm_play::
 		call	getint
 		ret		nz
 		jp		bgmdriver_play
@@ -147,14 +151,14 @@ bgm_play:
 ;--- PLAY BGM ---
 ;================================
 ; A=USR()
-bgm_stop:
+bgm_stop::
 		jp		bgmdriver_stop
 
 ;================================
 ;--- PLAY SOUND EFFECT ---
 ;================================
 ; A=USR[ADDRESS]
-bgm_se:
+bgm_se::
 		call	getint
 		ret		nz
 		jp		bgmdriver_play_sound_effect
@@ -164,7 +168,7 @@ bgm_se:
 ;--- FADE OUT BGM ---
 ;================================
 ; A=USR[SPEED]
-bgm_fadeout:
+bgm_fadeout::
 		call	getint
 		ret		nz
 		ld		a,l
@@ -175,7 +179,7 @@ bgm_fadeout:
 ;================================
 ; A=USR[0]
 ;	A>0 ... PLAYING
-bgm_is_play:
+bgm_is_play::
 		call	getint
 		ret		nz
 
@@ -185,6 +189,37 @@ bgm_is_play:
 		jr		z,bgm_is_stop
 		inc		hl
 bgm_is_stop:
+		pop		ix
+		ld		[ix+2],l
+		ld		[ix+3],h
+		ret
+
+;================================
+;--- PAUSE BGM ---
+;================================
+; A=USR()
+bgm_pause::
+		call	getint
+		ret		nz
+
+		ld		a,l
+		jp		bgmdriver_pause
+
+;================================
+;--- IS PAUSE? ---
+;================================
+; A=USR[0]
+;	A>0 ... PAUSE NOW
+bgm_is_pause::
+		call	getint
+		ret		nz
+
+		push	ix	;[IX+2] = INT VALUE
+		call	bgmdriver_check_pause
+		ld		hl,0
+		jr		z,bgm_is_not_pause
+		inc		hl
+bgm_is_not_pause:
 		pop		ix
 		ld		[ix+2],l
 		ld		[ix+3],h
