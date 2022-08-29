@@ -37,13 +37,13 @@ bgm02.bat がサンプルになります。
 | ラベル名                    | 機能                     | 引数                                                |
 |-----------------------------|--------------------------|-----------------------------------------------------|
 | bgmdriver_initialize        |ドライバを初期化する      |                                                     |
-| bgmdriver_play              |BGMを演奏する             | [HL]...BGMデータのアドレス                          |
+| bgmdriver_play              |BGMを演奏する             | HL...BGMデータのアドレス                            |
 | bgmdriver_stop              |BGMを演奏終了する         | なし                                                |
 | bgmdriver_pause             |BGM一時停止/解除          | A ... 1=一時停止 / 0=一時停止解除                   |
 | bgmdriver_is_pause          |BGMが一時停止中か調べる   | Z ... ZフラグがONなら一時停止中                     |
 | bgmdriver_check_playing     |BGMが演奏中か調べる       | Z ... ZフラグがONなら演奏中                         |
 | bgmdriver_fadeout           |BGMをフェードアウトさせる | A ... フェードアウトウェイト                        |
-| bgmdriver_play_sound_effect |効果音を再生する          | [HL] ... 効果音データのアドレス                     |
+| bgmdriver_play_sound_effect |効果音を再生する          | HL ... 効果音データのアドレス                       |
 |(その他)                     |                          |                                                     |
 | bgmdriver_mute_psg          |PSGを強制的に消音する     | PSGレジスタを直接操作。演奏中だと演奏で上書きされる |
 | bgmdriver_interrupt_handler |割り込み中の処理をする    | H.TIMIから呼び出す                                  |
