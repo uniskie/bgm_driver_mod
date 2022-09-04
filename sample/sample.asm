@@ -62,7 +62,9 @@ interrupt_initializer::
 ; =============================================================================
 	scope		h_timi_interrupt_handler
 h_timi_interrupt_handler::
+	push		af
 	call		bgmdriver_interrupt_handler
+	pop			af
 h_timi_next::
 	ret
 	ret
